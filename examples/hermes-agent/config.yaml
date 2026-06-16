@@ -1,0 +1,41 @@
+# Example Hermes agent for Omnigent
+#
+# Run with: omni run examples/hermes-agent/ --harness hermes
+
+spec_version: 1
+name: hermes_agent
+description: >
+  Hermes agent running under Omnigent — gets live session sharing,
+  mobile access, contextual policies, and collaboration.
+
+prompt: >
+  You are Hermes, a self-improving AI agent. You have access to tools,
+  memory, and skills. Help the user accomplish their tasks.
+
+executor:
+  type: omnigent
+  config:
+    harness: hermes
+  model: claude-sonnet-4-6
+
+# Hermes handles tools internally (70+ built-in tools, MCP support).
+# Omnigent tool specs here are informational — Hermes uses its own.
+tools: {}
+
+# Contextual policies — these are enforced by Omnigent, NOT by Hermes.
+# Even if Hermes is prompt-injected, these cannot be bypassed.
+policies:
+  - name: cost_limit
+    type: function
+    function:
+      path: omnigent.policies.builtins.cost.cost_budget
+      arguments:
+        ask_thresholds_usd: [1.0]
+        max_cost_usd: 10.0
+
+  - name: approve_git_push
+    type: function
+    function:
+      path: omnigent.policies.builtins.security.approve_dangerous
+      arguments:
+        tool_patterns: ["git push", "git push.*", "rm -rf"]
