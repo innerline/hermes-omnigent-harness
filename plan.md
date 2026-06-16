@@ -1,6 +1,6 @@
 # Hermes Omnigent Harness — Implementation Plan
 
-## Status: ✅ Phase 3 Complete — 39/39 tests passing
+## Status: ✅ v0.2.0 — All phases complete, 39/39 tests passing, PyPI-ready
 
 ## What's Built
 
@@ -53,8 +53,12 @@ Key decisions:
 - [x] Credential bridge — `_build_hermes_spawn_env()` in workflow.py, model env key mapping
 - [x] `supports_live_message_queue()` + `supports_tool_boundary_interrupt()` capability flags
 
-### Phase 4: Polish
-- [ ] Package on PyPI (`pip install hermes-omnigent-harness`)
-- [ ] Entry point registration (no manual `__init__.py` edit needed)
-- [ ] Documentation for governance policy examples
-- [ ] CI pipeline
+### Phase 4: Polish ✅
+- [x] PyPI-ready package (v0.2.0, sdist + wheel builds)
+- [x] Entry point registration — `hermes-register` console script + `omnigent.harnesses` entry point
+- [x] Auto-registration via `.pth` file (zero manual patching)
+- [x] Governance policy documentation (`docs/governance.md`)
+- [x] GitHub Actions CI (lint + matrix tests + build + publish)
+- [x] LICENSE, classifiers, keywords, project URLs
+- [x] Ruff configuration
+- [x] Updated README with full quick start + feature matrix

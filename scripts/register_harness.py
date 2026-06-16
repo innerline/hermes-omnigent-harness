@@ -184,8 +184,8 @@ def patch_spawn_env_dispatch(pkg_path: Path) -> bool:
             return False
 
     if needs_import:
-        old_imp = '            _build_pi_spawn_env,\n        )'
-        new_imp = '            _build_pi_spawn_env,\n            _build_hermes_spawn_env,\n        )'
+        old_imp = "            _build_pi_spawn_env,\n        )"
+        new_imp = "            _build_pi_spawn_env,\n            _build_hermes_spawn_env,\n        )"
         if old_imp in content:
             content = content.replace(old_imp, new_imp, 1)
 

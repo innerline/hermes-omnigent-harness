@@ -352,9 +352,11 @@ class TestSpawnEnvBridge:
     def test_spawn_env_builder_exists(self):
         """_build_hermes_spawn_env is importable from workflow."""
         from omnigent.runtime.workflow import _build_hermes_spawn_env
+
         assert callable(_build_hermes_spawn_env)
 
     def test_model_env_key_mapping(self):
         """Hermes is in _HARNESS_MODEL_ENV_KEY mapping."""
         from omnigent.runner.app import _HARNESS_MODEL_ENV_KEY
+
         assert _HARNESS_MODEL_ENV_KEY.get("hermes") == "HARNESS_HERMES_MODEL"

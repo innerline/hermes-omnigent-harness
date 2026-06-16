@@ -1,0 +1,1 @@
+import hermes_omnigent_harness._register; hermes_omnigent_harness._register._register_at_startup()

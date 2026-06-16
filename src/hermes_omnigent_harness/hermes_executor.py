@@ -459,7 +459,7 @@ class HermesExecutor(Executor):
 
                 # On tool call boundaries, drain any live-queued messages
                 # into the Hermes conversation as follow-up input
-                if hasattr(item, 'name') and hasattr(item, 'args'):
+                if hasattr(item, "name") and hasattr(item, "args"):
                     # ToolCallRequest — check for queued messages
                     while not self._message_queue.empty():
                         try:
