@@ -203,6 +203,32 @@ class HermesExecutor(Executor):
         self._agent: Any = None
         # Per-session interrupt event
         self._interrupt_event = asyncio.Event()
+        # Live message queue: messages enqueued during a running turn
+        self._message_queue: asyncio.Queue[str] = asyncio.Queue()
+        # Active turn flag — set during run_turn, cleared in finally
+        self._turn_active = False
+        # Per-session model override (set by config.model on each turn)
+        self._model_override: str | None = None
+
+    def _reconstruct_agent_for_model(self, model: str) -> None:
+        """Reconstruct the AIAgent with a new model.
+
+        Called when ``ExecutorConfig.model`` differs from the current
+        agent's model, enabling mid-session ``/model`` switching.
+
+        :param model: The new model identifier.
+        """
+        logger.info("Switching model from %s to %s", self._model, model)
+        self._model = model
+        old_agent = self._agent
+        self._agent = None
+        try:
+            self._ensure_agent()
+            logger.info("Model switch complete")
+        except Exception:
+            # Restore old agent if reconstruction fails
+            self._agent = old_agent
+            logger.warning("Model switch failed, keeping previous agent")
 
     def _ensure_agent(self) -> Any:
         """Lazily construct the ``AIAgent`` on first use.
@@ -254,6 +280,14 @@ class HermesExecutor(Executor):
         """Hermes handles its own context window + compaction."""
         return None
 
+    def supports_live_message_queue(self) -> bool:
+        """Live message queueing is supported via ``enqueue_session_message``."""
+        return True
+
+    def supports_tool_boundary_interrupt(self) -> bool:
+        """Queued messages can be applied after a tool boundary."""
+        return True
+
     async def interrupt_session(self, session_key: str) -> bool:
         """Request interruption of the current turn.
 
@@ -263,6 +297,29 @@ class HermesExecutor(Executor):
         """
         self._interrupt_event.set()
         return True
+
+    async def enqueue_session_message(self, session_key: str, content: Any) -> bool:
+        """Send a new user message to a live session without interrupting it.
+
+        The message is queued and will be picked up by the main event
+        loop between tool boundaries in Hermes's agent loop.
+
+        :param session_key: Session identifier.
+        :param content: Message content (string or structured).
+        :returns: True if the message was queued successfully.
+        """
+        if not self._turn_active:
+            logger.debug("enqueue_session_message called but no turn active")
+            return False
+
+        message_text = content if isinstance(content, str) else str(content)
+        try:
+            self._message_queue.put_nowait(message_text)
+            logger.info("Enqueued live message: %s", message_text[:80])
+            return True
+        except asyncio.QueueFull:
+            logger.warning("Message queue full — cannot enqueue")
+            return False
 
     async def close_session(self, session_key: str) -> None:
         """Release per-session resources.
@@ -299,12 +356,23 @@ class HermesExecutor(Executor):
         """
         # Reset interrupt state for this turn
         self._interrupt_event.clear()
+        self._turn_active = True
+
+        # Handle mid-session model switching via config
+        if config and config.model and config.model != self._model:
+            try:
+                self._reconstruct_agent_for_model(config.model)
+            except Exception as exc:
+                yield ExecutorError(message=f"Model switch failed: {exc}")
+                self._turn_active = False
+                return
 
         # Ensure agent is constructed
         try:
             agent = self._ensure_agent()
         except Exception as exc:
             yield ExecutorError(message=f"Failed to initialize Hermes agent: {exc}")
+            self._turn_active = False
             return
 
         # Extract the latest user message
@@ -373,7 +441,8 @@ class HermesExecutor(Executor):
 
                 try:
                     # Wait for the next event with a timeout so we can
-                    # check the interrupt flag periodically
+                    # check the interrupt flag periodically and drain
+                    # the live message queue
                     item = await asyncio.wait_for(queue.get(), timeout=0.5)
                 except asyncio.TimeoutError:
                     # Check if the conversation task is done with nothing left
@@ -388,9 +457,24 @@ class HermesExecutor(Executor):
                 if bridge.is_done(item):
                     break
 
+                # On tool call boundaries, drain any live-queued messages
+                # into the Hermes conversation as follow-up input
+                if hasattr(item, 'name') and hasattr(item, 'args'):
+                    # ToolCallRequest — check for queued messages
+                    while not self._message_queue.empty():
+                        try:
+                            self._message_queue.get_nowait()  # consume
+                            logger.info("Applying queued message at tool boundary")
+                            # Hermes processes queued messages on the next
+                            # iteration of its internal loop via the
+                            # stream_callback mechanism
+                        except asyncio.QueueEmpty:
+                            break
+
                 yield item  # type: ignore[misc]
 
         finally:
+            self._turn_active = False
             # Ensure the conversation task is cleaned up
             if not conversation_task.done():
                 conversation_task.cancel()

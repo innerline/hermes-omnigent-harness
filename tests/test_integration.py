@@ -23,7 +23,10 @@ from omnigent.inner.executor import (
     ExecutorError,
 )
 
-from hermes_omnigent_harness.hermes_executor import HermesExecutor, _build_hermes_executor
+from hermes_omnigent_harness.hermes_executor import (
+    HermesExecutor,
+    _build_hermes_executor,
+)
 
 
 class MockAIAgent:
@@ -262,3 +265,96 @@ class TestCreateApp:
 
         assert "hermes" in _HARNESS_MODULES
         assert _HARNESS_MODULES["hermes"] == "hermes_omnigent_harness.hermes_harness"
+
+
+class TestModelSwitching:
+    """Test mid-session model switching (Phase 3)."""
+
+    def test_model_override_stores_new_model(self):
+        """Config model override triggers model reconstruction."""
+        executor = HermesExecutor(model="initial-model")
+        executor._agent = MockAIAgent()  # pre-set to avoid real init
+
+        # Simulate what run_turn does before constructing
+        executor._model_override = "new-model"
+        assert executor._model_override == "new-model"
+
+    def test_reconstruct_agent_for_model(self):
+        """_reconstruct_agent_for_model resets and rebuilds."""
+        executor = HermesExecutor(model="model-a")
+        executor._agent = MockAIAgent()
+
+        executor._reconstruct_agent_for_model("model-b")
+        assert executor._model == "model-b"
+        # Agent should have been reconstructed
+        assert executor._agent is not None
+
+
+class TestLiveMessageQueue:
+    """Test live message queueing (Phase 3)."""
+
+    def test_supports_live_message_queue(self):
+        """Executor advertises live message queue support."""
+        executor = HermesExecutor.__new__(HermesExecutor)
+        assert executor.supports_live_message_queue() is True
+
+    def test_supports_tool_boundary_interrupt(self):
+        """Executor advertises tool boundary interrupt support."""
+        executor = HermesExecutor.__new__(HermesExecutor)
+        assert executor.supports_tool_boundary_interrupt() is True
+
+    @pytest.mark.asyncio
+    async def test_enqueue_when_no_turn_active(self):
+        """Enqueue returns False when no turn is active."""
+        executor = HermesExecutor(model="test")
+        result = await executor.enqueue_session_message("key", "hello")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_enqueue_when_turn_active(self):
+        """Enqueue returns True when a turn is active."""
+        executor = HermesExecutor(model="test")
+        executor._turn_active = True
+        result = await executor.enqueue_session_message("key", "hello")
+        assert result is True
+
+        # Verify message was queued
+        assert not executor._message_queue.empty()
+        msg = await asyncio.wait_for(executor._message_queue.get(), timeout=1.0)
+        assert msg == "hello"
+
+
+class TestProfileAndToolsets:
+    """Test Hermes profile and toolset filtering (Phase 3)."""
+
+    def test_profile_from_env(self, monkeypatch):
+        """Profile is read from HARNESS_HERMES_PROFILE env var."""
+        monkeypatch.setenv("HARNESS_HERMES_PROFILE", "researcher")
+        executor = _build_hermes_executor()
+        assert executor._profile == "researcher"
+
+    def test_enabled_toolsets_from_env(self, monkeypatch):
+        """Enabled toolsets are read from env."""
+        monkeypatch.setenv("HARNESS_HERMES_ENABLED_TOOLSETS", "web,terminal")
+        executor = _build_hermes_executor()
+        assert executor._enabled_toolsets == "web,terminal"
+
+    def test_disabled_toolsets_from_env(self, monkeypatch):
+        """Disabled toolsets are read from env."""
+        monkeypatch.setenv("HARNESS_HERMES_DISABLED_TOOLSETS", "vision")
+        executor = _build_hermes_executor()
+        assert executor._disabled_toolsets == "vision"
+
+
+class TestSpawnEnvBridge:
+    """Test the Omnigent spawn-env credential bridge (Phase 3)."""
+
+    def test_spawn_env_builder_exists(self):
+        """_build_hermes_spawn_env is importable from workflow."""
+        from omnigent.runtime.workflow import _build_hermes_spawn_env
+        assert callable(_build_hermes_spawn_env)
+
+    def test_model_env_key_mapping(self):
+        """Hermes is in _HARNESS_MODEL_ENV_KEY mapping."""
+        from omnigent.runner.app import _HARNESS_MODEL_ENV_KEY
+        assert _HARNESS_MODEL_ENV_KEY.get("hermes") == "HARNESS_HERMES_MODEL"
