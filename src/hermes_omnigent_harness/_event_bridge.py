@@ -82,9 +82,7 @@ class HermesStreamBridge:
         from omnigent.inner.executor import ToolCallRequest
 
         try:
-            self._queue.put_nowait(
-                ToolCallRequest(name=name, args=args or {})
-            )
+            self._queue.put_nowait(ToolCallRequest(name=name, args=args or {}))
         except asyncio.QueueFull:
             logger.warning("Event bridge queue full — dropping tool call event")
 
@@ -132,7 +130,9 @@ class HermesStreamBridge:
             return
         self._finished = True
 
-        response = result.get("final_response") if isinstance(result, dict) else str(result)
+        response = (
+            result.get("final_response") if isinstance(result, dict) else str(result)
+        )
         usage = None
         if isinstance(result, dict) and isinstance(result.get("usage"), dict):
             raw_usage = result["usage"]
@@ -151,9 +151,7 @@ class HermesStreamBridge:
             }
 
         try:
-            self._queue.put_nowait(
-                TurnComplete(response=response, usage=usage or None)
-            )
+            self._queue.put_nowait(TurnComplete(response=response, usage=usage or None))
         except asyncio.QueueFull:
             logger.error("Event bridge queue full — cannot enqueue TurnComplete")
         finally:

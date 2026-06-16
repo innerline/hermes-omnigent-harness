@@ -333,9 +333,11 @@ class HermesExecutor(Executor):
                         system_message=system_prompt if system_prompt else None,
                         stream_callback=bridge.stream_callback,
                     )
-                    return result if isinstance(result, dict) else {
-                        "final_response": str(result)
-                    }
+                    return (
+                        result
+                        if isinstance(result, dict)
+                        else {"final_response": str(result)}
+                    )
                 except Exception as exc:
                     logger.exception("Hermes run_conversation failed")
                     bridge.finish_with_error(

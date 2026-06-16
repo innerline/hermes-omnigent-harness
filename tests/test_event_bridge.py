@@ -53,15 +53,17 @@ async def test_finish_enqueues_turn_complete():
 async def test_finish_with_usage():
     """finish() extracts usage info from the result dict."""
     bridge = HermesStreamBridge()
-    bridge.finish({
-        "final_response": "Response",
-        "usage": {
-            "input_tokens": 100,
-            "output_tokens": 50,
-            "total_tokens": 150,
-            "irrelevant_key": "ignored",
-        },
-    })
+    bridge.finish(
+        {
+            "final_response": "Response",
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "total_tokens": 150,
+                "irrelevant_key": "ignored",
+            },
+        }
+    )
 
     queue = await bridge.events()
     event_item = await asyncio.wait_for(queue.get(), timeout=1.0)
