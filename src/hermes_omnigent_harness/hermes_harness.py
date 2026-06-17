@@ -21,9 +21,9 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI
+from omnigent.runtime.harnesses._executor_adapter import ExecutorAdapter
 
 from .hermes_executor import _build_hermes_executor
-from omnigent.runtime.harnesses._executor_adapter import ExecutorAdapter
 
 logger = logging.getLogger(__name__)
 

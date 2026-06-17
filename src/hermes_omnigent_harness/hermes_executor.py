@@ -52,7 +52,7 @@ import logging
 import os
 import sys
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 try:
     from omnigent.inner.datamodel import OSEnvSandboxSpec, OSEnvSpec
@@ -62,8 +62,8 @@ try:
         ExecutorError,
         ExecutorEvent,
         Message,
-        TurnComplete,
         ToolSpec,
+        TurnComplete,
     )
 except ImportError:
     # Fallback for environments without omnigent installed (unit testing,

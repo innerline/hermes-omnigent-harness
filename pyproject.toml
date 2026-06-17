@@ -54,3 +54,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["I", "E402"]
+"scripts/*" = ["E501"]
+"src/hermes_omnigent_harness/_register.py" = ["E501"]
+"src/hermes_omnigent_harness/hermes_executor.py" = ["E501"]

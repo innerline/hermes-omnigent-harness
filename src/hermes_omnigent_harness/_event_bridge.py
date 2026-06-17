@@ -26,8 +26,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from omnigent.inner.executor import (
         ExecutorEvent,
-        TextChunk,
-        TurnComplete,
     )
 
 logger = logging.getLogger(__name__)
