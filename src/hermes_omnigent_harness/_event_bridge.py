@@ -21,15 +21,30 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from omnigent.inner.executor import (
-    ExecutorEvent,
-    TextChunk,
-    TurnComplete,
-)
+if TYPE_CHECKING:
+    from omnigent.inner.executor import (
+        ExecutorEvent,
+        TextChunk,
+        TurnComplete,
+    )
 
 logger = logging.getLogger(__name__)
+
+
+def _import_executor_types():
+    """Lazily import Omnigent executor types at runtime.
+
+    Allows this module to be imported without omnigent installed —
+    the types are only needed when actually creating events.
+    """
+    from omnigent.inner.executor import (
+        ExecutorEvent,
+        TextChunk,
+        TurnComplete,
+    )
+    return ExecutorEvent, TextChunk, TurnComplete
 
 # Sentinel placed on the queue to signal "conversation finished, drain
 # remaining events then stop."
@@ -65,6 +80,7 @@ class HermesStreamBridge:
         :param delta: Incremental text delta from the model.
         """
         if delta:
+            _, TextChunk, _ = _import_executor_types()
             try:
                 self._queue.put_nowait(TextChunk(text=delta))
             except asyncio.QueueFull:
@@ -151,6 +167,7 @@ class HermesStreamBridge:
             }
 
         try:
+            _, _, TurnComplete = _import_executor_types()
             self._queue.put_nowait(TurnComplete(response=response, usage=usage or None))
         except asyncio.QueueFull:
             logger.error("Event bridge queue full — cannot enqueue TurnComplete")

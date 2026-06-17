@@ -52,18 +52,33 @@ import logging
 import os
 import sys
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from omnigent.inner.datamodel import OSEnvSandboxSpec, OSEnvSpec
-from omnigent.inner.executor import (
-    Executor,
-    ExecutorConfig,
-    ExecutorError,
-    ExecutorEvent,
-    Message,
-    TurnComplete,
-    ToolSpec,
-)
+try:
+    from omnigent.inner.datamodel import OSEnvSandboxSpec, OSEnvSpec
+    from omnigent.inner.executor import (
+        Executor,
+        ExecutorConfig,
+        ExecutorError,
+        ExecutorEvent,
+        Message,
+        TurnComplete,
+        ToolSpec,
+    )
+except ImportError:
+    # Fallback for environments without omnigent installed (unit testing,
+    # CI). The Executor base class and event types are only needed at
+    # runtime when serving through Omnigent; module-level fallbacks allow
+    # import and message-extraction tests to run standalone.
+    OSEnvSandboxSpec = None  # type: ignore[assignment, misc]
+    OSEnvSpec = None  # type: ignore[assignment, misc]
+    Executor = object  # type: ignore[assignment, misc]
+    ExecutorConfig = None  # type: ignore[assignment, misc]
+    ExecutorError = None  # type: ignore[assignment, misc]
+    ExecutorEvent = None  # type: ignore[assignment, misc]
+    Message = dict  # type: ignore[assignment, misc]
+    TurnComplete = None  # type: ignore[assignment, misc]
+    ToolSpec = dict  # type: ignore[assignment, misc]
 
 from ._event_bridge import HermesStreamBridge
 
@@ -88,42 +103,42 @@ _HERMES_SOURCE = os.environ.get(
 )
 
 
-def _resolve_os_env() -> OSEnvSpec:
+def _resolve_os_env() -> Any:
     """Decode the ``OSEnvSpec`` from the ``HARNESS_HERMES_OS_ENV`` env var.
 
-    :returns: An :class:`OSEnvSpec` for the executor. Falls back to
-        ``caller_process`` + ``sandbox=none`` when unset or malformed.
+    :returns: An ``OSEnvSpec`` for the executor, or a plain dict when
+        omnigent isn't installed (unit testing).
     """
     raw = os.environ.get(_ENV_OS_ENV, "").strip()
     if raw:
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
-            logger.warning(
-                "%s is not valid JSON (%s); falling back to default os_env",
-                _ENV_OS_ENV,
-                exc,
-            )
+            logger.warning("%s is not valid JSON (%s); using default", _ENV_OS_ENV, exc)
             payload = None
         if isinstance(payload, dict):
-            sandbox_payload = payload.get("sandbox")
-            sandbox = (
-                OSEnvSandboxSpec(**sandbox_payload)
-                if isinstance(sandbox_payload, dict)
-                else None
-            )
-            return OSEnvSpec(
-                type=str(payload.get("type", "caller_process")),
-                cwd=payload.get("cwd"),
-                sandbox=sandbox,
-                fork=bool(payload.get("fork", False)),
-            )
-    return OSEnvSpec(
-        type="caller_process",
-        cwd=None,
-        sandbox=OSEnvSandboxSpec(type="none"),
-        fork=False,
-    )
+            if OSEnvSpec is not None:
+                sandbox_payload = payload.get("sandbox")
+                sandbox = (
+                    OSEnvSandboxSpec(**sandbox_payload)
+                    if isinstance(sandbox_payload, dict)
+                    else None
+                )
+                return OSEnvSpec(
+                    type=str(payload.get("type", "caller_process")),
+                    cwd=payload.get("cwd"),
+                    sandbox=sandbox,
+                    fork=bool(payload.get("fork", False)),
+                )
+            return payload
+    if OSEnvSpec is not None:
+        return OSEnvSpec(
+            type="caller_process",
+            cwd=None,
+            sandbox=OSEnvSandboxSpec(type="none"),
+            fork=False,
+        )
+    return {"type": "caller_process", "sandbox": {"type": "none"}}
 
 
 def _build_hermes_executor() -> HermesExecutor:

@@ -11,10 +11,11 @@ Omnigent's Python env).
 from __future__ import annotations
 
 import asyncio
-import sys
 from typing import Any
 
 import pytest
+
+pytest.importorskip("omnigent")
 
 # These imports require omnigent to be installed
 from omnigent.inner.executor import (

@@ -4,7 +4,11 @@ import asyncio
 
 import pytest
 
-from hermes_omnigent_harness._event_bridge import HermesStreamBridge, _DONE
+# Skip all tests in this file if omnigent isn't installed —
+# the bridge creates ExecutorEvent instances at runtime.
+pytest.importorskip("omnigent")
+
+from hermes_omnigent_harness._event_bridge import HermesStreamBridge, _DONE  # noqa: E402
 
 
 @pytest.mark.asyncio
