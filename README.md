@@ -46,7 +46,7 @@ A custom **Omnigent harness** that wraps **Hermes agent sessions**, giving Herme
 
 ```bash
 # Clone and install into Omnigent's Python environment
-git clone https://github.com/brianoconnell/hermes-omnigent-harness.git
+git clone https://github.com/innerline/hermes-omnigent-harness.git
 cd hermes-omnigent-harness
 
 # Install into the same env that runs Omnigent

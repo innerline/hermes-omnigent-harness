@@ -81,10 +81,10 @@ def register_with_omnigent() -> dict[str, bool]:
         entry = '    "hermes": "hermes_omnigent_harness.hermes_harness",'
         content = init_path.read_text()
         if '"hermes"' not in content:
-            pattern = r'(_HARNESS_MODULES:\s*dict\[str,\s*str\]\s*=\s*\{.*?)(\n\})'
+            pattern = r"(_HARNESS_MODULES:\s*dict\[str,\s*str\]\s*=\s*\{.*?)(\n\})"
             match = re.search(pattern, content, re.DOTALL)
             if match:
-                new = content[: match.end(1)] + "\n" + entry + content[match.end(1):]
+                new = content[: match.end(1)] + "\n" + entry + content[match.end(1) :]
                 init_path.write_text(new)
                 results["harness_modules"] = True
 
@@ -127,15 +127,17 @@ def register_with_omnigent() -> dict[str, bool]:
     # 5. _build_spawn_env_from_spec dispatch (runner/app.py)
     if app_path.exists():
         content = app_path.read_text()
-        if '_build_hermes_spawn_env' not in content:
+        if "_build_hermes_spawn_env" not in content:
             # Add dispatch case
             old = '        elif harness == "openai-agents":\n            env = _build_openai_agents_sdk_spawn_env(spec)\n        else:'
             new = '        elif harness == "openai-agents":\n            env = _build_openai_agents_sdk_spawn_env(spec)\n        elif harness == "hermes":\n            env = _build_hermes_spawn_env(spec, workdir=workdir)\n        else:'
             if old in content:
                 content = content.replace(old, new, 1)
             # Add import
-            old_imp = '            _build_pi_spawn_env,\n        )'
-            new_imp = '            _build_pi_spawn_env,\n            _build_hermes_spawn_env,\n        )'
+            old_imp = "            _build_pi_spawn_env,\n        )"
+            new_imp = (
+                "            _build_pi_spawn_env,\n            _build_hermes_spawn_env,\n        )"
+            )
             if old_imp in content:
                 content = content.replace(old_imp, new_imp, 1)
             app_path.write_text(content)
@@ -233,4 +235,4 @@ def main() -> None:
     print()
     print("Verify with:")
     print("  python -c 'from omnigent.runtime.harnesses import")
-    print("    _HARNESS_MODULES; print(\"hermes\" in _HARNESS_MODULES)'")
+    print('    _HARNESS_MODULES; print("hermes" in _HARNESS_MODULES)\'')
