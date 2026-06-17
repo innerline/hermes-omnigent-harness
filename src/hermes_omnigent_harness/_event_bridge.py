@@ -42,7 +42,9 @@ def _import_executor_types():
         TextChunk,
         TurnComplete,
     )
+
     return ExecutorEvent, TextChunk, TurnComplete
+
 
 # Sentinel placed on the queue to signal "conversation finished, drain
 # remaining events then stop."
@@ -144,9 +146,7 @@ class HermesStreamBridge:
             return
         self._finished = True
 
-        response = (
-            result.get("final_response") if isinstance(result, dict) else str(result)
-        )
+        response = result.get("final_response") if isinstance(result, dict) else str(result)
         usage = None
         if isinstance(result, dict) and isinstance(result.get("usage"), dict):
             raw_usage = result["usage"]

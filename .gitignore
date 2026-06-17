@@ -31,4 +31,3 @@ Thumbs.db
 .env
 .env.local
 .ruff_cache/
-dist/
